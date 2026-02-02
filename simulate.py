@@ -20,7 +20,7 @@ from nuscenes.nuscenes import NuScenes
 DEFAULT_RAIN_MM_HR = 100.0
 DROP_DIAMETER_MM = 2.0
 RADIUS_M = 100.0
-HEIGHT_M = 4.0
+HEIGHT_M = 100.0
 FREQUENCY_HZ = 120.0
 CAMS = ("CAM_FRONT","CAM_FRONT_LEFT","CAM_FRONT_RIGHT","CAM_BACK","CAM_BACK_LEFT","CAM_BACK_RIGHT")
 
@@ -219,8 +219,8 @@ def add_rain_one_sample_batched(
     radius_m=RADIUS_M,
     height_m=HEIGHT_M,
     frequency_hz=FREQUENCY_HZ,
-    base_lambda_per_mmhr=0.1,
-    max_particles=20000,
+    base_lambda_per_mmhr=1,
+    max_particles=200000,
     z_buffer_margin_m=2.0,
     samples_per_streak=16,
     device="cuda" if torch.cuda.is_available() else "cpu",
@@ -293,6 +293,7 @@ def add_rain_one_sample_batched(
         cam_token = sample["data"][cam_name]
         u_l, v_l, z_l = get_nusc_depth_from_lidar(nusc, cam_token, lidar_token)
         depth_m = convert_map_to_meters(depth_raw, u_l, v_l, z_l, scaling_method="p95", max_range_m=100.0)
+        print(f"Max depth in {cam_name} : {np.max(depth_m)}")
 
         depth_t = torch.from_numpy(depth_m).to(device=device, dtype=torch.float32)
 
@@ -312,14 +313,13 @@ def add_rain_one_sample_batched(
         uu0, vv0, uu1, vv1 = uu0[keep], vv0[keep], uu1[keep], vv1[keep]
 
         cap_scale = float(n_new) / float(max(1, n))
-        alpha = 0.08 * cap_scale
+        alpha = 40.0 # full opaque 
         rain = rasterize_lines(H, W, uu0, vv0, uu1, vv1, alpha=alpha, samples=samples_per_streak, device=device)
 
         a = torch.clamp(rain * 0.9, 0.0, 0.9).unsqueeze(0).repeat(3, 1, 1)
         out[cam_name] = img * (1.0 - a) + torch.ones_like(img) * a
 
     return out, info
-
 
 
 if __name__ == "__main__":
