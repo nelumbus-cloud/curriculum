@@ -283,7 +283,8 @@ if __name__ == "__main__":
     args = parseer.parse_args()
 
     nusc = NuScenes(version=args.data_version, dataroot=args.dataroot, verbose=False)
-    
+    scene0 = nusc.scene[0]
+
     #first sample tests
     sample_token = scene0["first_sample_token"]
 
