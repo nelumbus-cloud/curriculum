@@ -312,3 +312,4 @@ if __name__ == "__main__":
     for cam_name, img_t in rainy.items():
         arr = (img_t.clamp(0, 1).permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)
         Image.fromarray(arr).save(file_name)
+        print(f"Saved {cam_name} to {file_name}")
