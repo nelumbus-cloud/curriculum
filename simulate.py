@@ -26,9 +26,7 @@ def convert_map_to_meters(
     scaling_method="p95",
     max_range_m=100.0, #100m by inspection
     eps=1e-6,
-    p_lo=5, p_hi=95,
-    n_knots=4,
-    poly_deg=2,
+    p_lo=5, p_hi=95
 ):
     d = depth_map.astype(np.float32)
     d = d.max() - d

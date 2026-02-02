@@ -12,7 +12,6 @@
 
 set -Eeuo pipefail
 
-module load miniconda
 source activate nusc_depth
 
 
