@@ -22,6 +22,52 @@ DROP_DIAMETER_MM = 2.0
 RADIUS_M = 100.0
 HEIGHT_M = 4.0
 FREQUENCY_HZ = 120.0
+CAMS = ("CAM_FRONT","CAM_FRONT_LEFT","CAM_FRONT_RIGHT","CAM_BACK","CAM_BACK_LEFT","CAM_BACK_RIGHT")
+
+
+
+
+
+## file saving  utils
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.lib.utils import ImageReader
+
+
+def save_png(t, path):
+    arr = (t.clamp(0, 1).permute(1, 2, 0).cpu().numpy() * 255).astype("uint8")
+    Image.fromarray(arr).save(path)
+
+def export_comparison_pdf(pdf_path, pairs, title):
+    Wp, Hp = landscape(letter)
+    c = canvas.Canvas(str(pdf_path), pagesize=(Wp, Hp))
+    margin = 36
+    gap = 18
+    img_w = (Wp - 2*margin - gap) / 2
+    img_h = Hp - 2*margin - 40
+
+    for cam_name, orig_path, rainy_path, rain_mm_hr in pairs:
+        c.setFont("Helvetica-Bold", 14)
+        c.drawString(margin, Hp - margin - 10, f"{title} — {cam_name} — rain={rain_mm_hr} mm/hr")
+
+        y0 = margin
+        xL = margin
+        xR = margin + img_w + gap
+
+        orig = ImageReader(str(orig_path))
+        rainy = ImageReader(str(rainy_path))
+
+        c.setFont("Helvetica", 12)
+        c.drawString(xL, y0 + img_h + 10, "Original")
+        c.drawString(xR, y0 + img_h + 10, "Rainy")
+
+        c.drawImage(orig, xL, y0, width=img_w, height=img_h, preserveAspectRatio=True, anchor='c')
+        c.drawImage(rainy, xR, y0, width=img_w, height=img_h, preserveAspectRatio=True, anchor='c')
+
+        c.showPage()
+
+    c.save()
+
 
 
 def convert_map_to_meters(
@@ -97,7 +143,6 @@ def get_nusc_depth_from_lidar(nusc, camera_token, pointsensor_token):
     return u, v, z
 
 
-CAMS = ("CAM_FRONT","CAM_FRONT_LEFT","CAM_FRONT_RIGHT","CAM_BACK","CAM_BACK_LEFT","CAM_BACK_RIGHT")
 
 def terminal_velocity(D_mm):
     return torch.clamp(9.65 - 10.3 * torch.exp(-0.6 * D_mm), min=0.0)
@@ -151,9 +196,16 @@ def rasterize_lines(H, W, u0, v0, u1, v1, alpha, samples, device):
     vv = v0.view(-1, 1) * (1 - t) + v1.view(-1, 1) * t
     ui = torch.round(uu).long()
     vi = torch.round(vv).long()
-    inb = (ui >= 0) & (ui < W) & (vi >= 0) & (vi < H)
-    idx = (vi[inb] * W + ui[inb]).view(-1)
-    rain.view(-1).index_add_(0, idx, torch.full_like(idx, alpha / samples, dtype=torch.float32))
+
+    thickness = 1
+    a = alpha / samples
+    for dx in range(-thickness, thickness + 1):
+        for dy in range(-thickness, thickness + 1):
+            uii = ui + dx
+            vii = vi + dy
+            inb = (uii >= 0) & (uii < W) & (vii >= 0) & (vii < H)
+            idx = (vii[inb] * W + uii[inb]).view(-1)
+            rain.view(-1).index_add_(0, idx, torch.full_like(idx, a, dtype=torch.float32))
     return torch.clamp(rain, 0.0, 1.0)
 
 @torch.no_grad()
@@ -167,7 +219,7 @@ def add_rain_one_sample_batched(
     radius_m=RADIUS_M,
     height_m=HEIGHT_M,
     frequency_hz=FREQUENCY_HZ,
-    base_lambda_per_mmhr=2e-6,
+    base_lambda_per_mmhr=0.1,
     max_particles=20000,
     z_buffer_margin_m=2.0,
     samples_per_streak=16,
@@ -242,11 +294,6 @@ def add_rain_one_sample_batched(
         u_l, v_l, z_l = get_nusc_depth_from_lidar(nusc, cam_token, lidar_token)
         depth_m = convert_map_to_meters(depth_raw, u_l, v_l, z_l, scaling_method="p95", max_range_m=100.0)
 
-        if depth_m.shape != (H, W):
-            dm = torch.from_numpy(depth_m).unsqueeze(0).unsqueeze(0)
-            dm = F.interpolate(dm, size=(H, W), mode="nearest").squeeze().cpu().numpy()
-            depth_m = dm.astype(np.float32)
-
         depth_t = torch.from_numpy(depth_m).to(device=device, dtype=torch.float32)
 
         m = ok[ci]
@@ -306,10 +353,26 @@ if __name__ == "__main__":
 
     print(info)
 
-    # save all 6 rainy camera images    
-    timestamp = time.time() # current time
-    file_name = args.output_dir + "/" + str(timestamp) + ".png"
+    timestamp = str(int(time.time()))
+    pairs = []
+
+    sample = nusc.get("sample", sample_token)
+
     for cam_name, img_t in rainy.items():
-        arr = (img_t.clamp(0, 1).permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)
-        Image.fromarray(arr).save(file_name)
-        print(f"Saved {cam_name} to {file_name}")
+        cam_token = sample["data"][cam_name]
+        sd = nusc.get("sample_data", cam_token)
+        orig_img_path = Path(args.dataroot) / sd["filename"]
+
+        orig_out = Path(args.output_dir) / f"{timestamp}_{cam_name}_orig.png"
+        rainy_out = Path(args.output_dir) / f"{timestamp}_{cam_name}_rainy.png"
+
+        Image.open(orig_img_path).convert("RGB").save(orig_out)
+        save_png(img_t, rainy_out)
+
+        pairs.append((cam_name, orig_out, rainy_out, DEFAULT_RAIN_MM_HR))
+        print(f"Saved {cam_name}: {orig_out} and {rainy_out}")
+
+    pdf_path = Path(args.output_dir) / f"{timestamp}_comparison.pdf"
+    export_comparison_pdf(pdf_path, pairs, title=f"nuScenes sample {sample_token}")
+    print(f"Saved PDF: {pdf_path}")
+
