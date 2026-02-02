@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from nuscenes.utils.data_classes import LidarPointCloud
 from nuscenes.utils.geometry_utils import view_points
 from pyquaternion import Quaternion
-
+from nuscenes.nuscenes import NuScenes
 
 DEFAULT_RAIN_MM_HR = 100.0
 DROP_DIAMETER_MM = 2.0
@@ -272,6 +272,8 @@ def add_rain_one_sample_batched(
 
 
 if __name__ == "__main__":
+    
+
     parseer = argparse.ArgumentParser()
     # parse dataroot, depth_root, output_dir, data version
     parseer.add_argument("--dataroot", type=str, required=True)
