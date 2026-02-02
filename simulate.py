@@ -228,6 +228,7 @@ if __name__ == "__main__":
     arg = argparse.ArgumentParser()
     arg.add_argument("--dataroot", type=str)
     arg.add_argument("--depth_root", type=str)
+    arg.add_argument("--output_dir", type=str)
     args = arg.parse_args()
     from nuscenes.nuscenes import NuScenes
     nusc = NuScenes(version="v1.0-mini", dataroot=args.dataroot, verbose=True)
@@ -244,6 +245,6 @@ if __name__ == "__main__":
     print(info)
     rainy_img_np = (rainy_img.permute(1, 2, 0).cpu().numpy() * 255.0).astype(np.uint8)
     rainy_pil = Image.fromarray(rainy_img_np)
-    rainy_pil.save("rainy_image.png")
-    print("Saved rainy image to rainy_image.png")
-
+    output_path = f"{args.output_dir}/rainy_image.png"
+    rainy_pil.save(output_path)
+    print(f"Saved rainy image to {output_path}")
