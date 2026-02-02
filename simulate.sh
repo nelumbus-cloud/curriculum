@@ -8,7 +8,7 @@
 
 #SBATCH -o logs/%x_%j.out
 #SBATCH -e logs/%x_%j.err
-set -Eeuo pipefail
+set -Eeo pipefail
 
 source /opt/ohpc/pub/apps/miniconda/etc/profile.d/conda.sh
 conda activate rain_sim
