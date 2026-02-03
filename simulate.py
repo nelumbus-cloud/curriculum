@@ -4,6 +4,7 @@ from pathlib import Path
 
 import argparse
 import os
+import sys
 import time
 
 
@@ -23,7 +24,7 @@ RADIUS_M = 100.0
 HEIGHT_M = 100.0
 FREQUENCY_HZ = 120.0
 CAMS = ("CAM_FRONT","CAM_FRONT_LEFT","CAM_FRONT_RIGHT","CAM_BACK","CAM_BACK_LEFT","CAM_BACK_RIGHT")
-
+DEBUG = True
 
 
 
@@ -302,9 +303,50 @@ def add_rain_one_sample_batched(
             out[cam_name] = img
             continue
 
+
+        # --- DEBUG COUNTS ---
+        n_spawn = int(n)
+
+        # 1) In front of camera for both endpoints (Z>0)
+        n_infront = int(m.sum().item())
+
+        # 2) In image bounds (both endpoints)
+        uu0_all = u0[ci][m]; vv0_all = v0[ci][m]
+        uu1_all = u1[ci][m]; vv1_all = v1[ci][m]
+        in0 = (uu0_all >= 0) & (uu0_all < W) & (vv0_all >= 0) & (vv0_all < H)
+        in1 = (uu1_all >= 0) & (uu1_all < W) & (vv1_all >= 0) & (vv1_all < H)
+        in_img = in0 & in1
+        n_inimg = int(in_img.sum().item())
+
+        # 3) After depth keep (if you use it)
+        uu0b = uu0_all[in_img]; vv0b = vv0_all[in_img]
+        p0c = p0_cam[ci][m][in_img]
+
+        ui = torch.clamp(torch.round(uu0b).long(), 0, W - 1)
+        vi = torch.clamp(torch.round(vv0b).long(), 0, H - 1)
+
+        depth_at = depth_t[vi, ui]
+        keep_depth = torch.isfinite(depth_at) & (p0c[:, 2] <= (depth_at + float(z_buffer_margin_m)))
+        n_keep = int(keep_depth.sum().item())
+
+        # Save stats
+        info.setdefault("per_cam", {})
+        info["per_cam"][cam_name] = {
+            "spawn_used": n_spawn,
+            "in_front": n_infront,
+            "in_image": n_inimg,
+            "after_depth": n_keep,
+        }
+
+        print(f"[{cam_name}] spawned={n_spawn} infront={n_infront} inimg={n_inimg} after_depth={n_keep}")
+        # --- END DEBUG COUNTS ---
+
+
         uu0 = u0[ci][m]; vv0 = v0[ci][m]
         uu1 = u1[ci][m]; vv1 = v1[ci][m]
         p0c = p0_cam[ci][m]
+
+        
 
         ui = torch.clamp(torch.round(uu0).long(), 0, W - 1)
         vi = torch.clamp(torch.round(vv0).long(), 0, H - 1)
@@ -352,6 +394,10 @@ if __name__ == "__main__":
     )
 
     print(info)
+
+    if DEBUG:
+        print("Debug Mode: Not saving files")
+        sys.exit(0)
 
     timestamp = str(int(time.time()))
     pairs = []
