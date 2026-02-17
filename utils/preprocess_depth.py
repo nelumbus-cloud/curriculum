@@ -9,7 +9,7 @@ from joblib import Parallel, delayed
 
 import logging
 
-logging.basicConfig(level=logging.INFO)   
+  
 
 
 def get_depth_extremad(cam_info, lidar_path, w, h):
@@ -68,7 +68,6 @@ def depth_in_meters(depth_path, pts_img, pts_z, method='p95', p_lo=5, p_hi=95, m
         coeff = np.polyfit(x, z, deg=2)
         depth_meters = coeff[0] * d01**2 + coeff[1] * d01 + coeff[2]
 
-        logging.info(f"[poly2] Depth stats: min={depth_meters.min():.2f}, max={depth_meters.max():.2f}")
         return depth_meters
     else:
         raise NotImplementedError
@@ -76,6 +75,7 @@ def depth_in_meters(depth_path, pts_img, pts_z, method='p95', p_lo=5, p_hi=95, m
 
 def process_sample(sample_info, img_width, img_height,args):
     #unpack args
+    logging.basicConfig(level=logging.INFO)
 
     try:
         img_file_name = sample_info['images'][args.cam]['img_path']

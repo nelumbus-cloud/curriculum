@@ -15,7 +15,7 @@ mkdir -p logs
 export APPCONTAINER="$HOME/cuda121-uv.sif"
 export PROJECT_DIR="$HOME/curriculum"
 export APPTAINER_BIND="/projects:/projects,/home/sb2ek/uhome:/opt,/scratch:/scratch"
-export OUT_DIR=$PROJECT_DIR/data/nuscenes_depth_meters
+export OUT_DIR=$PROJECT_DIR/mmdetection3d/data/nuscenes_depth_meters
 mkdir -p $OUT_DIR
 cd $PROJECT_DIR
 
@@ -30,6 +30,6 @@ python utils/preprocess_depth.py \
   --cam CAM_FRONT"
 
 mkdir -p $OUT_DIR/samples/
-rsync -v /scratch/samples/ $OUT_DIR/samples/
+rsync -av /scratch/samples/ $OUT_DIR/samples/
     
 
