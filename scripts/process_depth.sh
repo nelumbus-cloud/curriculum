@@ -1,0 +1,35 @@
+#SBATCH --job-name=depth_process
+#SBATCH --partition=research-cpu
+#SBATCH --mem=32G
+#SBATCH --time=04:00:00
+#SBATCH --output=logs/%x_%j.out
+#SBATCH --error=logs/%x_%j.err
+#SBATCH --mail-user=sb2ek@mtmail.mtsu.edu
+#SBATCH --mail-type=END,FAIL
+set -e
+set -x
+mkdir -p logs
+
+
+export APPCONTAINER="$HOME/cuda121-uv.sif"
+export PROJECT_DIR="$HOME/curriculum"
+export APPTAINER_BIND="/projects:/projects"
+export OUT_DIR=$PROJECT_DIR/data/nuscenes_depth_meters
+mkdir -p $OUT_DIR
+cd $PROJECT_DIR
+
+apptainer exec "$APPCONTAINER" bash -c "\
+source /opt/venvs/mmdet/bin/activate && \
+python scripts/process_depth.py \
+  --num_workers 32 \
+  --dataroot mmdetection3d/data/nuscenes2 \
+  --depth_root /projects/sb2ek/datasets/nuscenes_depth_mini \
+  --version v1.0-mini \
+  --out_root /scratch \
+  --pkl_path mmdetection3d/data/nuscenes2/nuscenes_infos_train.pkl \
+  --cam CAM_FRONT"
+
+mkdir -p $OUT_DIR/samples/
+rsync -v /scratch/samples/ $OUT_DIR/samples/
+    
+

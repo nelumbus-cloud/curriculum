@@ -1,63 +1,14 @@
-import cv2
-import numpy as np
-import os
-import mmengine
-import argparse
 
-import logging
 
-logging.basicConfig(level=logging.INFO)   
+from utils.preprocess_depth import get_depth_extremad, depth_in_meters
 
-def depth_in_meters(depth_path, pts_img, pts_z, method='p95', p_lo=5, p_hi=95, max_depth_meters=100, eps=1e-6):
-
-    d_map = np.load(depth_path).astype(np.float32)
-
-    # inverse depth -> depth-like
-    d_map = d_map.max() - d_map
-
-    # normalize
-    d01 = (d_map - d_map.min()) / (d_map.max() - d_map.min() + eps)
-
-    h, w = d_map.shape
-    uv = pts_img.copy().astype(np.int32)
-
-    uv[:, 0] = np.clip(uv[:, 0], 0, w - 1)
-    uv[:, 1] = np.clip(uv[:, 1], 0, h - 1)
-
-    x = d01[uv[:, 1], uv[:, 0]]
-    z = pts_z.astype(np.float32)
-
-    # filter lidar
-    mask = (z > 1.0) & (z < 80.0)
-    x = x[mask]
-    z = z[mask]
-
-    if method == "p95":
-        x_lo, x_hi = np.percentile(x, [p_lo, p_hi])
-        z_lo, z_hi = np.percentile(z, [p_lo, p_hi])
-
-        a = (z_hi - z_lo) / (x_hi - x_lo + eps)
-        b = z_lo - a * x_lo
-
-        depth_meters = a * d01 + b
-
-        logging.info(f"Depth stats: min={depth_meters.min():.2f}, max={depth_meters.max():.2f}")
-        return depth_meters
-    elif method == "poly2":
-        coeff = np.polyfit(x, z, deg=2)
-        depth_meters = coeff[0] * d01**2 + coeff[1] * d01 + coeff[2]
-
-        logging.info(f"[poly2] Depth stats: min={depth_meters.min():.2f}, max={depth_meters.max():.2f}")
-        return depth_meters
-    else:
-        raise NotImplementedError
-#beta >= 2.29e-3 
-def add_fog_beta(image, depth_in_km, beta=0.02, airlight=220):
+#beta >= 2.29e-3 per m
+def add_fog_beta(image, depth_in_meters, beta=0.02, airlight=220):
     """
     Applies fog attenuation: I(x) = I(x) * exp(-beta * d(x)) + L * (1 - exp(-beta * d(x)))
     """
     # Transmission map
-    t = np.exp(-beta * depth_in_km)
+    t = np.exp(-beta * depth_in_meters)
     
     # Expand dims for broadcasting if image is RGB (H, W, 3)
     if len(image.shape) == 3 and len(t.shape) == 2:
@@ -71,21 +22,6 @@ def add_fog_beta(image, depth_in_km, beta=0.02, airlight=220):
     return np.clip(foggy_image, 0, 255).astype(np.uint8)
 
 
-
-def get_depth_extremad(cam_info, lidar_path, w, h):
-    
-    l2c = np.array(cam_info['lidar2cam']).reshape(4, 4)
-    c2i = np.array(cam_info['cam2img']).reshape(3, 3)
-    pts = np.fromfile(lidar_path, dtype=np.float32).reshape(-1, 5)[:, :3]
-    pts_cam = (np.hstack((pts, np.ones((len(pts), 1)))) @ l2c.T)[:, :3]
-    mask_z = pts_cam[:, 2] > 0
-    pts_cam = pts_cam[mask_z]
-    pts_img_hom = pts_cam @ c2i.T
-    pts_img = pts_img_hom[:, :2] / pts_img_hom[:, 2:3]
-    mask_fov = (pts_img[:, 0] >= 0) & (pts_img[:, 0] < w) & (pts_img[:, 1] >= 0) & (pts_img[:, 1] < h)
-    final_z = pts_cam[mask_fov, 2]
-    final_img = pts_img[mask_fov]
-    return final_z, final_img.astype(np.uint32)
 
 
 @MMENGINE.register_module()
