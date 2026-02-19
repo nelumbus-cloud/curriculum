@@ -21,21 +21,38 @@ def add_fog_beta(image, depth_in_meters, beta=0.02, airlight=220):
     
     return np.clip(foggy_image, 0, 255).astype(np.uint8)
 
+def estimate_airlight(image, patch_size=15, brightest_fraction=1/1000):
+    """
+    image: HxWx3 BGR uint8 image
+    patch_size: size of erosion patch
+    brightest_fraction: fraction of brightest dark-channel pixels
+    """
+
+    H, W, _ = image.shape
+    num_pixels = H * W
+
+    # 1. Dark channel (min over channels + erosion)
+    min_channel = np.min(image, axis=2)
+    kernel = np.ones((patch_size, patch_size), np.uint8)
+    dark_channel = cv2.erode(min_channel, kernel)
+
+    # 2. Pick top brightest pixels in dark channel
+    brightest_count = max(1, int(brightest_fraction * num_pixels))
+    dark_vec = dark_channel.reshape(-1)
+    brightest_indices = np.argpartition(dark_vec, -brightest_count)[-brightest_count:]
+
+    # 3. Among them, pick highest grayscale intensity in original image
+    gray_vec = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).reshape(-1)
+    best_idx = brightest_indices[np.argmax(gray_vec[brightest_indices])]
+
+    # 4. Recover atmospheric light
+    row = best_idx // W
+    col = best_idx % W
+    airlight = image[row, col].astype(np.float32)
+
+    return airlight, (row, col)
 
 
-
-@MMENGINE.register_module()
-def add_fog(cfg):
-    # z, uv = get_depth_extremad(cam_info, lidar_path, w=img_width, h=img_height)
-
-    # depth_map = depth_in_meters(depth_path, uv, z, method='poly2')
-
-    # #foggy image
-    # image = cv2.imread(os.path.join(args.dataroot, f'samples/{cam}/{img_file_name}'))
-
-    # #
-    # foggy_image = add_fog_beta(image, depth_map, beta=0.05)
-    pass
 
 if __name__ == '__main__':
     # Example usage
@@ -75,8 +92,9 @@ if __name__ == '__main__':
     #foggy image
     image = cv2.imread(os.path.join(args.dataroot, f'samples/{cam}/{img_file_name}'))
 
-    #
-    foggy_image = add_fog_beta(image, depth_map, beta=0.05)
+    #estimate airlight
+    airlight, _ = estimate_airlight(image)
+    foggy_image = add_fog_beta(image, depth_map, beta=0.05, airlight=airlight)
     #check max and min of fog beta
     logging.info(f"Max foggy image: {foggy_image.max()}")
     logging.info(f"Min foggy image: {foggy_image.min()}")
