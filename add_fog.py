@@ -1,6 +1,12 @@
 
-
 from utils.preprocess_depth import get_depth_extremad, depth_in_meters
+import argparse
+import mmengine
+import os
+import cv2
+import numpy as np
+import logging
+
 
 #beta >= 2.29e-3 per m
 def add_fog_beta(image, depth_in_meters, beta=0.02, airlight=220):
@@ -56,6 +62,8 @@ def estimate_airlight(image, patch_size=15, brightest_fraction=1/1000):
 
 if __name__ == '__main__':
     # Example usage
+    
+    
     pkl_path = 'data/nuscenes/nuscenes_infos_train.pkl'
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataroot', default='data/nuscenes')
@@ -89,7 +97,7 @@ if __name__ == '__main__':
 
     depth_map = depth_in_meters(depth_path, uv, z, method='poly2')
 
-    #foggy image
+    #foggy image 
     image = cv2.imread(os.path.join(args.dataroot, f'samples/{cam}/{img_file_name}'))
 
     #estimate airlight
