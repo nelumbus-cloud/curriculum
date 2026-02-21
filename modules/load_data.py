@@ -48,7 +48,12 @@ class LoadSingleImageWithDepth(BaseTransform):
         camera_type = list(results['images'].keys())
         print(f"Camera type: {camera_type}")
 
-        filename = results['images'][self.cam]['img_path']
+        if list(results['images'].keys())[0] == self.cam:
+            filename = results['images'][self.cam]['img_path']
+        elif self.ignore_empty:
+            return None
+        else:
+            raise KeyError(f'Camera {self.cam} not found in {results["images"]}')
         
 
         try: 
