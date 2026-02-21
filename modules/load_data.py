@@ -34,7 +34,7 @@ class LoadSingleImageWithDepth(LoadImageFromFile):
             backend_args=backend_args,
             ignore_empty=ignore_empty
         )
-        
+
         self.load_dim = load_dim
         self.sweeps_num = sweeps_num
         if isinstance(use_dim, int):
@@ -61,10 +61,9 @@ class LoadSingleImageWithDepth(LoadImageFromFile):
 
         if list(results['images'].keys())[0] == self.cam:
             filename = results['images'][self.cam]['img_path']
-        elif self.ignore_empty:
-            return None
         else:
-            raise KeyError(f'Camera {self.cam} not found in {results["images"]}')
+            return None
+            #raise KeyError(f'Camera {self.cam} not found in {results["images"]}')
         
 
         try: 
