@@ -32,7 +32,6 @@ class LoadSingleImageWithDepth(LoadImageFromFile):
             color_type=color_type,
             imdecode_backend=imdecode_backend,
             backend_args=backend_args,
-            ignore_empty=ignore_empty
         )
 
         self.load_dim = load_dim
@@ -79,6 +78,7 @@ class LoadSingleImageWithDepth(LoadImageFromFile):
             raise RuntimeError(f'Failed to load image {filename} from {self.backend_args}: {e}')
         
         results['img'] = img
+        results['cam2img'] = results['images'][self.cam]['cam2img']
         results['depth_meters'] = depth_meters
         return results
         
@@ -88,7 +88,7 @@ class LoadSingleImageWithDepth(LoadImageFromFile):
 class AddFog(BaseTransform):
     def __init__(self, strategy: dict[str, float], total_epochs: None) -> None:
         self.strategy = strategy
-        self.beta = strategy['beta'] if 'beta' in strategy else None
+        self.beta = strategy['beta'] if 'beta' in strategy else 0
         self.airlight = strategy['airlight'] if 'airlight' in strategy else None
         self.epoch_no = None
        
