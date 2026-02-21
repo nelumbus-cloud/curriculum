@@ -28,6 +28,7 @@ cd "$PROJECT_DIR"
 
 apptainer exec --nv "$APPCONTAINER" bash -c '
     source /opt/venvs/mmdet/bin/activate && \
+    export PYTHONPATH=$PYTHONPATH:mmdetection3d && \
     python -u mmdetection3d/tools/train.py "$1" --work-dir="$2" \
     --cfg-options \
     data_root=data/nuscenes \
