@@ -1,12 +1,10 @@
-mmdet3d_base_path = 'mmdetection3d/configs/'
 
-base = [
-    '_base_/datasets/nus-mono3d.py', '_base_/models/fcos3d.py',
-    '_base_/schedules/mmdet-schedule-1x.py', '_base_/default_runtime.py'
+_base_ = [
+    '../mmdetection3d/configs/_base_/datasets/nus-mono3d.py', 
+    '../mmdetection3d/configs/_base_/models/fcos3d.py',
+    '../mmdetection3d/configs/_base_/schedules/mmdet-schedule-1x.py', 
+    '../mmdetection3d/configs/_base_/default_runtime.py'
 ]
-base = list(map(lambda x: f'{mmdet3d_base_path}/{x}', base))
-_base_ = base
-# model settings
 
 beta_min = 0.01
 beta_max = 0.05
