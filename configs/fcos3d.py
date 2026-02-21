@@ -43,7 +43,7 @@ train_pipeline = [
         with_bbox_3d=True,
         with_label_3d=True,
         with_bbox_depth=True),
-    dict(type='AddFog', strategy=dict(type='linear', betamin=beta_min, betamax=beta_max, total_epochs=total_epochs)),
+    dict(type='AddFog', strategy=dict(type='linear', betamin=beta_min, betamax=beta_max), total_epochs=total_epochs),
     dict(type='mmdet.Resize', scale=(1600, 900), keep_ratio=True),
     dict(type='RandomFlip3D', flip_ratio_bev_horizontal=0.5),
     dict(

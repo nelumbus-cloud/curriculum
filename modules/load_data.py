@@ -1,6 +1,6 @@
 from mmdet3d.registry import TRANSFORMS, HOOKS
 from mmcv.transforms import BaseTransform
-from curriculum.utils.add_fog import add_fog_beta, estimate_airlight
+from utils.add_fog import add_fog_beta, estimate_airlight
 from mmengine.hooks import Hook
 from mmengine.fileio import get
 from mmengine.logging import print_log
@@ -43,6 +43,10 @@ class LoadSingleImageWithDepth(BaseTransform):
 
     def transform(self, results: dict) -> dict:
         #results["img_info"] contain info of sample idx.
+
+        print(results['images'])
+        camera_type = list(results['images'].keys())
+        print(f"Camera type: {camera_type}")
 
         filename = results['images'][self.cam]['img_path']
         

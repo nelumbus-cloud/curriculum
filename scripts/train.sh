@@ -6,8 +6,6 @@
 #SBATCH --time=04:00:00
 #SBATCH --output=logs/%x_%j.out
 #SBATCH --error=logs/%x_%j.err
-#SBATCH --mail-user=sb2ek@mtmail.mtsu.edu
-#SBATCH --mail-type=END,FAIL
 set -e
 
 export APPCONTAINER="$HOME/cuda121-uv.sif"
@@ -32,9 +30,9 @@ apptainer exec --nv "$APPCONTAINER" bash -c '
     python -u mmdetection3d/tools/train.py "$1" --work-dir="$2" \
     --cfg-options \
     data_root=data/nuscenes \
-    train_dataloader.dataset.data_root=data/nuscenes \
-    val_dataloader.dataset.data_root=data/nuscenes \
-    val_evaluator.data_root=data/nuscenes
+    train_dataloader.dataset.data_root=mmdetection3d/data/nuscenes \
+    val_dataloader.dataset.data_root=mmdetection3d/data/nuscenes \
+    val_evaluator.data_root=mmdetection3d/data/nuscenes
 ' _ "$CONFIG" "$TEMP_WORK_DIR"
 
 rsync -av --progress "$TEMP_WORK_DIR/work_dirs/" "$WORK_DIR/"
