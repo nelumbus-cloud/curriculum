@@ -6,6 +6,11 @@ _base_ = [
     '../mmdetection3d/configs/_base_/default_runtime.py'
 ]
 
+custom_imports = dict(
+    imports=['modules.load_data'], # Path relative to your PYTHONPATH
+    allow_failed_imports=False
+)
+
 beta_min = 0.01
 beta_max = 0.05
 total_epochs = 12
