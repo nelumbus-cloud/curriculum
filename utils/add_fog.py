@@ -62,6 +62,7 @@ def estimate_airlight(image, patch_size=15, brightest_fraction=1/1000):
 
 if __name__ == '__main__':
     # Example usage
+    logging.basicConfig(level=logging.INFO)
     
     
     pkl_path = 'data/nuscenes/nuscenes_infos_train.pkl'
