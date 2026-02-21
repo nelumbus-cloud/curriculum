@@ -26,6 +26,15 @@ class LoadSingleImageWithDepth(LoadImageFromFile):
                 pad_empty_sweeps: bool = False,
                 remove_close: bool = False,
                 test_mode: bool = False) -> None:
+
+        super().__init__(
+            to_float32=to_float32,
+            color_type=color_type,
+            imdecode_backend=imdecode_backend,
+            backend_args=backend_args,
+            ignore_empty=ignore_empty
+        )
+        
         self.load_dim = load_dim
         self.sweeps_num = sweeps_num
         if isinstance(use_dim, int):
