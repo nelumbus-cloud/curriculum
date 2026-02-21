@@ -1,5 +1,7 @@
 from mmdet3d.registry import TRANSFORMS, HOOKS
 from mmcv.transforms import BaseTransform
+from mmcv.transforms import LoadImageFromFile
+
 from utils.add_fog import add_fog_beta, estimate_airlight
 from mmengine.hooks import Hook
 from mmengine.fileio import get
@@ -11,7 +13,7 @@ import os
 from typing import List, Optional
 
 @TRANSFORMS.register_module()
-class LoadSingleImageWithDepth(BaseTransform):
+class LoadSingleImageWithDepth(LoadImageFromFile):
     def __init__(self,
                 depth_root: str,
                 to_float32: bool = False,
