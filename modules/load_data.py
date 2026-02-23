@@ -53,14 +53,15 @@ class LoadSingleImageWithDepth(LoadImageFromFile):
 
     def transform(self, results: dict) -> dict:
         #results["img_info"] contain info of sample idx.
-        camera_type = list(results['images'].keys())
-
-        if list(results['images'].keys())[0] == self.cam:
+        if self.cam in results['images']:
             filename = results['images'][self.cam]['img_path']
+            results['cam2img'] = results['images'][self.cam]['cam2img']
+        elif len(results['images']) == 1:
+            camera_type = list(results['images'].keys())[0]
+            filename = results['images'][camera_type]['img_path']
+            results['cam2img'] = results['images'][camera_type]['cam2img']
         else:
-            return None
-            #raise KeyError(f'Camera {self.cam} not found in {results["images"]}')
-        
+            raise KeyError(f'Camera {self.cam} not found in {results["images"].keys()}')
 
         try: 
             img_bytes = get(filename, backend_args=self.backend_args)
@@ -75,7 +76,6 @@ class LoadSingleImageWithDepth(LoadImageFromFile):
             raise RuntimeError(f'Failed to load image {filename} from {self.backend_args}: {e}')
         
         results['img'] = img
-        results['cam2img'] = results['images'][self.cam]['cam2img']
         results['depth_meters'] = depth_meters
         return results
         
