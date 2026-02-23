@@ -1,7 +1,9 @@
 #!/bin/bash
 #SBATCH --job-name=fcos3d-train
 #SBATCH --partition=research-gpu
-#SBATCH -w c11
+#SBATCH --gres=gpu:A5000:1
+#SBATCH --mem=32G
+#SBATCH --time=04:00:00
 #SBATCH --mem=32G
 #SBATCH --time=04:00:00
 #SBATCH --output=logs/%x_%j.out

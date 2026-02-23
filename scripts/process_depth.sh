@@ -23,10 +23,10 @@ apptainer exec "$APPCONTAINER" bash -c "\
 source /opt/venvs/mmdet/bin/activate && \
 python utils/preprocess_depth.py \
   --num-workers 16 \
-  --dataroot mmdetection3d/data/nuscenes2 \
+  --dataroot mmdetection3d/data/nuscenes \
   --depth_root /projects/sb2ek/datasets/nuscenes_depth_mini \
   --out_root /scratch \
-  --pkl_path mmdetection3d/data/nuscenes2/nuscenes_infos_train.pkl \
+  --pkl_path mmdetection3d/data/nuscenes/nuscenes_infos_val.pkl \
   --cam CAM_FRONT"
 
 mkdir -p $OUT_DIR/samples/

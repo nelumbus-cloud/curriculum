@@ -53,10 +53,7 @@ class LoadSingleImageWithDepth(LoadImageFromFile):
 
     def transform(self, results: dict) -> dict:
         #results["img_info"] contain info of sample idx.
-
-        print(results['images'])
         camera_type = list(results['images'].keys())
-        print(f"Camera type: {camera_type}")
 
         if list(results['images'].keys())[0] == self.cam:
             filename = results['images'][self.cam]['img_path']
@@ -119,6 +116,8 @@ class AddFog(BaseTransform):
             # interpolate beta between betamin, betmax, using epoch or iterations by total iterations
             progress = self.epoch_no / self.total_epochs
             self.beta = self.strategy['betamin'] + (self.strategy['betamax'] - self.strategy['betamin']) * progress
+            print(f"adding fog with beta: {self.beta}")
+            print_log(f"adding fog with beta level {self.beta}", logger='current', level=logging.INFO)
             self.airlight = self.estimate_airlight(img)
             foggy_img = add_fog_beta(img, depth_meters, beta=self.beta, airlight=self.airlight)
             results['img'] = foggy_img

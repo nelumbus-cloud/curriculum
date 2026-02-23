@@ -7,17 +7,17 @@ _base_ = [
 ]
 
 custom_imports = dict(
-    imports=['modules.load_data'], # Path relative to your PYTHONPATH
+    imports=['modules.load_data'], 
     allow_failed_imports=False
 )
 
 beta_min = 0.01
 beta_max = 0.05
 total_epochs = 12
-batch_size = 16
-num_workers = 4
+batch_size = 4
+num_workers = 2
 
-depth_root = 'data/nuscenes_depth_meters'
+depth_root = "/projects/sb2ek/datasets/nuscenes_depth_mini"
 #depth root = 'data/nuscenes_depth'
 
 model = dict(
