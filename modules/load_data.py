@@ -50,6 +50,7 @@ class LoadSingleImageWithDepth(LoadImageFromFile):
         self.to_float32 = to_float32
         self.color_type = color_type
         self.imdecode_backend = imdecode_backend
+        self.ignore_empty = True
 
     def transform(self, results: dict) -> dict:
         #results["img_info"] contain info of sample idx.
@@ -73,7 +74,10 @@ class LoadSingleImageWithDepth(LoadImageFromFile):
             #assert depth and img dimesions
             assert depth_meters.shape[0] == img.shape[0] and depth_meters.shape[1] == img.shape[1]
         except Exception as e:
-            raise RuntimeError(f'Failed to load image {filename} from {self.backend_args}: {e}')
+            if self.ignore_empty:
+                return None
+            else:
+                raise RuntimeError(f'Failed to load image {filename} from {self.backend_args}: {e}')
         
         results['img'] = img
         results['depth_meters'] = depth_meters
