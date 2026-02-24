@@ -17,8 +17,8 @@ total_epochs = 12
 batch_size = 4
 num_workers = 2
 
-depth_root = "/projects/sb2ek/datasets/nuscenes_depth_mini"
-#depth root = 'data/nuscenes_depth'
+#depth_root = "/projects/sb2ek/datasets/nuscenes_depth_mini"
+depth_root = 'data/nuscenes_depth_meters'
 
 model = dict(
     data_preprocessor=dict(
@@ -59,8 +59,16 @@ test_pipeline = [
     dict(type='Pack3DDetInputs', keys=['img'])
 ]
 
+
 train_dataloader = dict(
-    batch_size=batch_size, num_workers=num_workers, dataset=dict(pipeline=train_pipeline))
+    batch_size=batch_size,
+    num_workers=num_workers, 
+    persistent_workers=False,
+    prefetch_factor=1,
+    pin_memory=False,
+    dataset=dict(pipeline=train_pipeline)
+)
+
 test_dataloader = dict(dataset=dict(pipeline=test_pipeline))
 val_dataloader = dict(dataset=dict(pipeline=test_pipeline))
 
