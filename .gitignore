@@ -1,1 +1,25 @@
 curriculum.code-workspace
+
+# Auto-added cleanup
+__pycache__/
+*.pyc
+*.pyo
+.cache/
+logs/
+ckpts/
+data/
+.venv-build/
+.vscode/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+configs/.ipynb_checkpoints/
+modules/.ipynb_checkpoints/
+notes/
+mmdetection3d/data/
+mmdetection3d/work_dirs/
+mmdetection3d/checkpoints/
+mmdetection3d/**/__pycache__/
+mmdetection3d/**/*.egg-info/
+mmdetection3d/**/*.pyc

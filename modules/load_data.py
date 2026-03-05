@@ -1,6 +1,8 @@
 from mmdet3d.registry import TRANSFORMS, HOOKS
 from mmcv.transforms import BaseTransform
 from mmcv.transforms import LoadImageFromFile
+from mmengine.logging import MessageHub
+
 
 from utils.add_fog import add_fog_beta, estimate_airlight
 from mmengine.hooks import Hook
@@ -54,9 +56,11 @@ class LoadSingleImageWithDepth(LoadImageFromFile):
 
     def transform(self, results: dict) -> dict:
         #results["img_info"] contain info of sample idx.
+        camera_type = None
         if self.cam in results['images']:
-            filename = results['images'][self.cam]['img_path']
-            results['cam2img'] = results['images'][self.cam]['cam2img']
+            camera_type = self.cam
+            filename = results['images'][camera_type]['img_path']
+            results['cam2img'] = results['images'][camera_type]['cam2img']
         elif len(results['images']) == 1:
             camera_type = list(results['images'].keys())[0]
             filename = results['images'][camera_type]['img_path']
@@ -69,11 +73,12 @@ class LoadSingleImageWithDepth(LoadImageFromFile):
             img = mmcv.imfrombytes(img_bytes, flag=self.color_type, backend=self.imdecode_backend)
             #depth path : depthroot/(img_prefix - dataroot)+img_name.replace('.jpg', '.npy')
             depth_file_name = filename.split('/')[-1].replace('.jpg', '.npy')
-            depth_path = os.path.join(self.depth_root + f'/samples/{self.cam}/' + depth_file_name)
+            depth_path = os.path.join(self.depth_root + f'/samples/{camera_type}/' + depth_file_name)
             depth_meters = np.load(depth_path)
             #assert depth and img dimesions
             assert depth_meters.shape[0] == img.shape[0] and depth_meters.shape[1] == img.shape[1]
         except Exception as e:
+            print(f"FAILED: filename={filename}, error={e}") 
             if self.ignore_empty:
                 return None
             else:
@@ -81,6 +86,8 @@ class LoadSingleImageWithDepth(LoadImageFromFile):
         
         results['img'] = img
         results['depth_meters'] = depth_meters
+        results['img_shape'] = img.shape[:2]  
+        results['ori_shape'] = img.shape[:2] 
         return results
         
         
@@ -106,22 +113,24 @@ class AddFog(BaseTransform):
         img = results['img']
         depth_meters = results['depth_meters']
         if int(self.beta) == 0: # no fog, don't process at all
-            return results
+            pass
+            #return results
         if self.beta<=0.02:
             print_log(f"Beta is too small, unrealistic fog may be generated: {self.beta}", logger='current', level=logging.WARNING)
         
 
         #update beta based on training progress i.e epochs or iterations
         #get epoch_info and batch_info from results
-        epoch_info = results['epoch_info']
+        message_hub = MessageHub.get_current_instance()
+        epoch_no = message_hub.get_info('epoch')
 
         if self.strategy['type'] == 'linear':
-            assert self.epoch_no is not None, "Epoch number is not set"
+            assert epoch_no is not None, "Epoch number is not set"
             # interpolate beta between betamin, betmax, using epoch or iterations by total iterations
-            progress = self.epoch_no / self.total_epochs
+            progress = epoch_no / self.total_epochs
             self.beta = self.strategy['betamin'] + (self.strategy['betamax'] - self.strategy['betamin']) * progress
-            print(f"adding fog with beta: {self.beta}")
-            print_log(f"adding fog with beta level {self.beta}", logger='current', level=logging.INFO)
+            if self.epoch_no and epoch_no > self.epoch_no:  # only print at the beginning of training
+                print_log(f"Adding fog with beta level {self.beta}", logger='current', level=logging.INFO)
             self.airlight = self.estimate_airlight(img)
             foggy_img = add_fog_beta(img, depth_meters, beta=self.beta, airlight=self.airlight)
             results['img'] = foggy_img
@@ -139,7 +148,7 @@ class AddFog(BaseTransform):
         else:
             print_log(f"Unknown strategy type: {self.strategy['type']}, using no fog ", logger='current', level=logging.WARNING)
 
-
+        self.epoch_no = epoch_no
         return results
     
     def estimate_airlight(self, img: np.ndarray) -> int:
@@ -147,23 +156,3 @@ class AddFog(BaseTransform):
         return airlight
     
 
-
-#Hooks won't update info in multi-worker mode, we need to make non-persistent worker for this to work
-@HOOKS.register_module()
-class InjectEpochHook(Hook):
-    def before_train_epoch(self, runner):
-        #couldn't see any metainfo in dataset class
-        runner.train_dataloader.dataset.metainfo['epoch_info'] = runner.epoch
-        dataset = runner.train_dataloader.dataset
-        dataset.metainfo['epoch_info'] = runner.epoch # i don't think dataset has metainfo ?
-        for transform in dataset.pipeline.transforms:
-            if isinstance(transform, AddFog):
-                transform.epoch_no = runner.epoch
-                break
-        if hasattr(runner.train_dataloader, 'persistent_workers'
-                       ) and runner.train_dataloader.persistent_workers is True:
-                runner.train_dataloader._DataLoader__initialized = False
-                runner.train_dataloader._iterator = None
-                self._restart_dataloader = True
-    # def after_train_epoch(self, runner):
-    #     runner.train_dataloader.dataset.metainfo['model_loss'] = runner.train_loss

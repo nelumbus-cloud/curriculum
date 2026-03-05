@@ -1,88 +1,80 @@
-#!/usr/bin/env bash
+#!/bin/bash
+#SBATCH --job-name=train_fcos3d
+#SBATCH --partition=research-gpu
+#SBATCH --gres=gpu:A5000:2
+#SBATCH --nodelist c19
+#SBATCH --time=12:00:00
+#SBATCH --output=logs/%x_%j.out
+#SBATCH --error=logs/%x_%j.err
+#SBATCH --mail-user=sb2ek@mtmail.mtsu.edu
+#SBATCH --mail-type=END,FAIL
+
 set -e
+set -x
 
-########################
-# User config
-########################
-export PARTITION=research-gpu
-export JOB_NAME=fcos3d-train
-export GPUS=1
-export GPUS_PER_NODE=1
-export CPUS_PER_TASK=8
-export SRUN_ARGS=""
-export PY_ARGS=""
+mkdir -p logs
 
-########################
-# Paths
-########################
-export APPCONTAINER="$HOME/cuda121-uv.sif"
+########################################
+# SLURM AUTOMATIC VARIABLES
+########################################
+
+# Number of GPUs on this node
+GPUS=2
+
+# Total nodes 
+NNODES=1
+
+# Rank of this node
+NODE_RANK=${SLURM_NODEID:-0}
+
+# Master address = first node in allocation
+MASTER_ADDR=$(scontrol show hostnames "$SLURM_JOB_NODELIST" | head -n 1)
+
+# Port (random but fixed per job)
+MASTER_PORT=29500
+
+########################################
+# PATHS
+########################################
+
+export APPTAINER_BIND="/opt:/opt,/scratch:/scratch,/projects:/projects,/tmp:/tmp"
+
 export PROJECT_DIR="$HOME/curriculum"
 export CONFIG="$PROJECT_DIR/configs/fcos3d.py"
-export WORK_DIR="$PROJECT_DIR/work_dirs/fcos3d"
+export WORK_DIR="$PROJECT_DIR/mmdetection3d/work_dirs"
+export TEMP_WORK_DIR="/scratch/sb2ek"
 
-########################
-# Apptainer binds
-########################
-export APPTAINER_BIND=$(tr '\n' ',' <<END
-/etc/passwd
-/etc/group
-/etc/nsswitch.conf
-/etc/slurm
-/etc/sssd/
-/lib64/libnss_sss.so.2:/lib/libnss_sss.so.2
-/usr/bin/sacct
-/usr/bin/salloc
-/usr/bin/sbatch
-/usr/bin/scancel
-/usr/bin/scontrol
-/usr/bin/scrontab
-/usr/bin/sinfo
-/usr/bin/squeue
-/usr/bin/srun
-/usr/bin/sshare
-/usr/bin/sstat
-/usr/bin/strace
-/usr/lib64/libmunge.so.2
-/usr/lib64/slurm
-/var/lib/sss
-/var/run/munge:/run/munge
-END
-)
+mkdir -p "$TEMP_WORK_DIR" "$TEMP_WORK_DIR/work_dirs"
 
-export APPTAINER_BIND+=",/projects:/projects,/home/sb2ek/uhome:/opt,/scratch:/scratch"
-
-########################
-# Output dir
-########################
-export OUT_DIR="$PROJECT_DIR/mmdetection3d/data/nuscenes_depth_meters"
-mkdir -p "$OUT_DIR"
 mkdir -p "$WORK_DIR"
 
 cd "$PROJECT_DIR"
 
-########################
-# Sanity prints
-########################
-echo "Running on partition: $PARTITION"
-echo "GPUs: $GPUS (per node: $GPUS_PER_NODE)"
-echo "Container: $APPCONTAINER"
-echo "Config: $CONFIG"
-echo "Work dir: $WORK_DIR"
-echo "Apptainer bind: $APPTAINER_BIND"
+########################################
+# TRAIN
+########################################
 
-########################
-# Launch
-########################
-srun -p "${PARTITION}" \
-    --job-name="${JOB_NAME}" \
-    --gres=gpu:${GPUS_PER_NODE} \
-    --ntasks="${GPUS}" \
-    --ntasks-per-node="${GPUS_PER_NODE}" \
-    --cpus-per-task="${CPUS_PER_TASK}" \
-    --kill-on-bad-exit=1 \
-    ${SRUN_ARGS} \
-    apptainer exec --nv "${APPCONTAINER}" \
-    python -u mmdetection3d/tools/train.py "${CONFIG}" \
-        --work-dir="${WORK_DIR}" \
-        --launcher="slurm" \
-        ${PY_ARGS}
+export APPCONTAINER="$HOME/cuda121-conda.sif"
+
+
+apptainer exec --nv "$APPCONTAINER" bash -c "
+set -xe
+source /opt/ohpc/pub/apps/miniconda/etc/profile.d/conda.sh && \
+conda activate mmdet3d && \
+cd $PROJECT_DIR && \
+export PYTHONPATH=$PYTHONPATH:$PROJECT_DIR && \
+cd $PROJECT_DIR/mmdetection3d && \
+torchrun \
+    --nproc_per_node=$GPUS \
+    --nnodes=$NNODES \
+    --node_rank=$NODE_RANK \
+    --master_addr=$MASTER_ADDR \
+    --master_port=$MASTER_PORT \
+    tools/train.py \
+    "$CONFIG" \
+    --work-dir="$TEMP_WORK_DIR" \
+    --launcher pytorch \
+    --cfg-options data_root=data/nuscenes
+"
+
+rsync -av --progress $TEMP_WORK_DIR/work_dirs/ $WORK_DIR/
